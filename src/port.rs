@@ -54,6 +54,26 @@ macro_rules! port {
                 _mode: marker::PhantomData<MODE>,
             }
 
+            impl digital::OutputPin for $PXx<Output> {
+                fn set_high(&mut self) {
+                    unsafe { (*atmega32u4::$PORTX::ptr()).port.modify(|r, w| w.bits(r.bits() | (1 << self.i))) }
+                }
+
+                fn set_low(&mut self) {
+                    unsafe { (*atmega32u4::$PORTX::ptr()).port.modify(|r, w| w.bits(r.bits() & !(1 << self.i))) }
+                }
+            }
+
+            impl digital::InputPin for $PXx<Input> {
+                fn is_high(&self) -> bool {
+                    (unsafe { (*atmega32u4::$PORTX::ptr()).pin.read().bits() } & (1 << self.i)) != 0
+                }
+
+                fn is_low(&self) -> bool {
+                    (unsafe { (*atmega32u4::$PORTX::ptr()).pin.read().bits() } & (1 << self.i)) == 0
+                }
+            }
+
             $(
                 pub struct $PXi<MODE> {
                     _mode: marker::PhantomData<MODE>,
@@ -70,6 +90,13 @@ macro_rules! port {
                         ddr.ddr().modify(|r, w| unsafe { w.bits(r.bits() | (1 << $i)) });
 
                         $PXi { _mode: marker::PhantomData }
+                    }
+
+                    pub fn downgrade(self) -> $PXx<MODE> {
+                        $PXx {
+                            i: $i,
+                            _mode: marker::PhantomData,
+                        }
                     }
                 }
 
