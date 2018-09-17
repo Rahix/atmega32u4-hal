@@ -156,3 +156,25 @@ port! (PORTD, portd, PDx, [
     PD6: (pd6, 6, Input),
     PD7: (pd7, 7, Input),
 ]);
+
+port! (PORTE, porte, PEx, [
+    PE0: (pe0, 0, Input),
+    PE1: (pe1, 1, Input),
+    PE2: (pe2, 2, Input),
+    PE3: (pe3, 3, Input),
+    PE4: (pe4, 4, Input),
+    PE5: (pe5, 5, Input),
+    PE6: (pe6, 6, Input),
+    PE7: (pe7, 7, Input),
+]);
+
+port! (PORTF, portf, PFx, [
+    PF0: (pf0, 0, Input),
+    PF1: (pf1, 1, Input),
+    PF2: (pf2, 2, Input),
+    PF3: (pf3, 3, Input),
+    PF4: (pf4, 4, Input),
+    PF5: (pf5, 5, Input),
+    PF6: (pf6, 6, Input),
+    PF7: (pf7, 7, Input),
+]);
