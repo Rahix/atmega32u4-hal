@@ -22,6 +22,7 @@ pub struct MHz1;
 
 // based on https://github.com/arduino/ArduinoCore-avr/blob/master/cores/arduino/wiring.c
 
+#[allow(unused_assignments)]
 fn busy_loop(mut us: u16) {
     unsafe {
         asm!("1: sbiw $0,1\n\tbrne 1b"
