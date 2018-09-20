@@ -1,15 +1,37 @@
+use atmega32u4;
+use hal::digital;
+use core::marker;
+
 pub trait PortExt {
     type Parts;
 
     fn split(self) -> Self::Parts;
 }
 
-pub struct Input;
+pub mod mode {
+    use core::marker;
 
-pub struct Output;
+    pub struct Io<MODE> {
+        _mode: marker::PhantomData<MODE>,
+    }
+
+    pub mod io {
+        use core::marker;
+
+        pub struct Input<MODE> {
+            _mode: marker::PhantomData<MODE>,
+        }
+        pub struct Output;
+
+        pub struct PullUp;
+        pub struct Floating;
+    }
+
+    pub struct Pwm;
+}
 
 macro_rules! port {
-    ($PORTX:ident, $portx:ident, $PXx:ident, [
+    ($PortEnum:ident, $PORTX:ident, $portx:ident, $PXx:ident, [
         $($PXi:ident: ($pxi:ident, $i:expr, $MODE:ty),)+
     ]) => {
         pub mod $portx {
@@ -17,7 +39,7 @@ macro_rules! port {
 
             use atmega32u4;
             use hal::digital;
-            use super::{PortExt, Input, Output};
+            use super::{PortExt, mode};
 
             pub struct Parts {
                 pub ddr: DDR,
@@ -54,7 +76,17 @@ macro_rules! port {
                 _mode: marker::PhantomData<MODE>,
             }
 
-            impl digital::OutputPin for $PXx<Output> {
+            impl<MODE> $PXx<MODE> {
+                pub fn downgrade(self) -> super::Pin<MODE> {
+                    super::Pin {
+                        i: self.i,
+                        port: super::Port::$PortEnum,
+                        _mode: marker::PhantomData,
+                    }
+                }
+            }
+
+            impl digital::OutputPin for $PXx<mode::io::Output> {
                 fn set_high(&mut self) {
                     unsafe { (*atmega32u4::$PORTX::ptr()).port.modify(|r, w| w.bits(r.bits() | (1 << self.i))) }
                 }
@@ -64,7 +96,7 @@ macro_rules! port {
                 }
             }
 
-            impl digital::InputPin for $PXx<Input> {
+            impl<MODE> digital::InputPin for $PXx<mode::io::Input<MODE>> {
                 fn is_high(&self) -> bool {
                     (unsafe { (*atmega32u4::$PORTX::ptr()).pin.read().bits() } & (1 << self.i)) != 0
                 }
@@ -76,17 +108,25 @@ macro_rules! port {
 
             $(
                 pub struct $PXi<MODE> {
-                    _mode: marker::PhantomData<MODE>,
+                    pub(crate) _mode: marker::PhantomData<MODE>,
                 }
 
                 impl<MODE> $PXi<MODE> {
-                    pub fn into_input(self, ddr: &mut DDR) -> $PXi<Input> {
+                    pub fn into_floating_input(self, ddr: &mut DDR) -> $PXi<mode::io::Input<mode::io::Floating>> {
                         ddr.ddr().modify(|r, w| unsafe { w.bits(r.bits() & !(1 << $i)) });
+                        unsafe { (*atmega32u4::$PORTX::ptr()).port.modify(|r, w| w.bits(r.bits() & !(1 << $i))) }
 
                         $PXi { _mode: marker::PhantomData }
                     }
 
-                    pub fn into_output(self, ddr: &mut DDR) -> $PXi<Output> {
+                    pub fn into_pull_up_input(self, ddr: &mut DDR) -> $PXi<mode::io::Input<mode::io::PullUp>> {
+                        ddr.ddr().modify(|r, w| unsafe { w.bits(r.bits() & !(1 << $i)) });
+                        unsafe { (*atmega32u4::$PORTX::ptr()).port.modify(|r, w| w.bits(r.bits() | (1 << $i))) }
+
+                        $PXi { _mode: marker::PhantomData }
+                    }
+
+                    pub fn into_output(self, ddr: &mut DDR) -> $PXi<mode::io::Output> {
                         ddr.ddr().modify(|r, w| unsafe { w.bits(r.bits() | (1 << $i)) });
 
                         $PXi { _mode: marker::PhantomData }
@@ -100,7 +140,7 @@ macro_rules! port {
                     }
                 }
 
-                impl digital::OutputPin for $PXi<Output> {
+                impl digital::OutputPin for $PXi<mode::io::Output> {
                     fn set_high(&mut self) {
                         unsafe { (*atmega32u4::$PORTX::ptr()).port.modify(|r, w| w.bits(r.bits() | (1 << $i))) }
                     }
@@ -110,7 +150,7 @@ macro_rules! port {
                     }
                 }
 
-                impl digital::InputPin for $PXi<Input> {
+                impl<MODE> digital::InputPin for $PXi<mode::io::Input<MODE>> {
                     fn is_high(&self) -> bool {
                         (unsafe { (*atmega32u4::$PORTX::ptr()).pin.read().bits() } & (1 << $i)) != 0
                     }
@@ -124,57 +164,111 @@ macro_rules! port {
     }
 }
 
-port! (PORTB, portb, PBx, [
-    PB0: (pb0, 0, Input),
-    PB1: (pb1, 1, Input),
-    PB2: (pb2, 2, Input),
-    PB3: (pb3, 3, Input),
-    PB4: (pb4, 4, Input),
-    PB5: (pb5, 5, Input),
-    PB6: (pb6, 6, Input),
-    PB7: (pb7, 7, Input),
+macro_rules! impl_generic_pin {
+    ($($PortEnum:ident: $Port:ident,)+) => {
+        #[derive(Clone, Copy, Debug)]
+        enum Port {
+            $($PortEnum,)+
+        }
+
+        #[derive(Debug)]
+        pub struct Pin<MODE> {
+            i: u8,
+            port: Port,
+            _mode: marker::PhantomData<MODE>,
+        }
+
+        impl digital::OutputPin for Pin<mode::io::Output> {
+            fn set_high(&mut self) {
+                match self.port {
+                    $(
+                        Port::$PortEnum => unsafe {
+                            (*atmega32u4::$Port::ptr()).port.modify(|r, w| w.bits(r.bits() | (1 << self.i)))
+                        },
+                    )+
+                }
+            }
+
+            fn set_low(&mut self) {
+                match self.port {
+                    $(
+                        Port::$PortEnum => unsafe {
+                            (*atmega32u4::$Port::ptr()).port.modify(|r, w| w.bits(r.bits() & !(1 << self.i)))
+                        },
+                    )+
+                }
+            }
+        }
+
+        impl<MODE> digital::InputPin for Pin<mode::io::Input<MODE>> {
+            fn is_high(&self) -> bool {
+                match self.port {
+                    $(
+                        Port::$PortEnum => unsafe {
+                            ((*atmega32u4::$Port::ptr()).pin.read().bits() & (1 << self.i)) != 0
+                        },
+                    )+
+                }
+            }
+
+            fn is_low(&self) -> bool {
+                match self.port {
+                    $(
+                        Port::$PortEnum => unsafe {
+                            ((*atmega32u4::$Port::ptr()).pin.read().bits() & (1 << self.i)) == 0
+                        },
+                    )+
+                }
+            }
+        }
+    }
+}
+
+impl_generic_pin!(
+    B: PORTB,
+    C: PORTC,
+    D: PORTD,
+    E: PORTE,
+    F: PORTF,
+);
+
+port! (B, PORTB, portb, PBx, [
+    PB0: (pb0, 0, mode::io::Input<mode::io::Floating>),
+    PB1: (pb1, 1, mode::io::Input<mode::io::Floating>),
+    PB2: (pb2, 2, mode::io::Input<mode::io::Floating>),
+    PB3: (pb3, 3, mode::io::Input<mode::io::Floating>),
+    PB4: (pb4, 4, mode::io::Input<mode::io::Floating>),
+    PB5: (pb5, 5, mode::io::Input<mode::io::Floating>),
+    PB6: (pb6, 6, mode::io::Input<mode::io::Floating>),
+    PB7: (pb7, 7, mode::io::Input<mode::io::Floating>),
 ]);
 
-port! (PORTC, portc, PCx, [
-    PC0: (pc0, 0, Input),
-    PC1: (pc1, 1, Input),
-    PC2: (pc2, 2, Input),
-    PC3: (pc3, 3, Input),
-    PC4: (pc4, 4, Input),
-    PC5: (pc5, 5, Input),
-    PC6: (pc6, 6, Input),
-    PC7: (pc7, 7, Input),
+port! (C, PORTC, portc, PCx, [
+    PC6: (pc6, 6, mode::io::Input<mode::io::Floating>),
+    PC7: (pc7, 7, mode::io::Input<mode::io::Floating>),
 ]);
 
-port! (PORTD, portd, PDx, [
-    PD0: (pd0, 0, Input),
-    PD1: (pd1, 1, Input),
-    PD2: (pd2, 2, Input),
-    PD3: (pd3, 3, Input),
-    PD4: (pd4, 4, Input),
-    PD5: (pd5, 5, Input),
-    PD6: (pd6, 6, Input),
-    PD7: (pd7, 7, Input),
+port! (D, PORTD, portd, PDx, [
+    PD0: (pd0, 0, mode::io::Input<mode::io::Floating>),
+    PD1: (pd1, 1, mode::io::Input<mode::io::Floating>),
+    PD2: (pd2, 2, mode::io::Input<mode::io::Floating>),
+    PD3: (pd3, 3, mode::io::Input<mode::io::Floating>),
+    PD4: (pd4, 4, mode::io::Input<mode::io::Floating>),
+    PD5: (pd5, 5, mode::io::Input<mode::io::Floating>),
+    PD6: (pd6, 6, mode::io::Input<mode::io::Floating>),
+    PD7: (pd7, 7, mode::io::Input<mode::io::Floating>),
 ]);
 
-port! (PORTE, porte, PEx, [
-    PE0: (pe0, 0, Input),
-    PE1: (pe1, 1, Input),
-    PE2: (pe2, 2, Input),
-    PE3: (pe3, 3, Input),
-    PE4: (pe4, 4, Input),
-    PE5: (pe5, 5, Input),
-    PE6: (pe6, 6, Input),
-    PE7: (pe7, 7, Input),
+port! (E, PORTE, porte, PEx, [
+    PE2: (pe2, 2, mode::io::Input<mode::io::Floating>),
+    PE6: (pe6, 6, mode::io::Input<mode::io::Floating>),
 ]);
 
-port! (PORTF, portf, PFx, [
-    PF0: (pf0, 0, Input),
-    PF1: (pf1, 1, Input),
-    PF2: (pf2, 2, Input),
-    PF3: (pf3, 3, Input),
-    PF4: (pf4, 4, Input),
-    PF5: (pf5, 5, Input),
-    PF6: (pf6, 6, Input),
-    PF7: (pf7, 7, Input),
+port! (F, PORTF, portf, PFx, [
+    PF0: (pf0, 0, mode::io::Input<mode::io::Floating>),
+    PF1: (pf1, 1, mode::io::Input<mode::io::Floating>),
+    PF4: (pf4, 4, mode::io::Input<mode::io::Floating>),
+    PF5: (pf5, 5, mode::io::Input<mode::io::Floating>),
+    PF6: (pf6, 6, mode::io::Input<mode::io::Floating>),
+    PF7: (pf7, 7, mode::io::Input<mode::io::Floating>),
 ]);
