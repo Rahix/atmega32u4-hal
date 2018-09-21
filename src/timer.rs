@@ -44,26 +44,82 @@ macro_rules! timer {
     }
 }
 
+// Timer0
 timer! {
     Info: (Timer0Pwm, TIMER0, tim),
     Init: {
         // Fast PWM Mode
-        tim.tccr_a.modify( |_, w| unsafe { w.wgm0().bits(0x11) });
-        // Enable timer
-        tim.tccr_b.modify( |_, w| unsafe { w.cs().bits(0b11) });
+        tim.tccr_a.modify(|_, w| unsafe { w.wgm0().bits(0b11) });
+        // Enable Timer
+        tim.tccr_b.modify(|_, w| unsafe { w.cs().bits(0b011) });
     },
     Pins: [
         |portb, PB7, pwm, dc| ({
             // Use OCR_A as Duty Cycle
-            pwm.tim.tccr_a.modify( |_, w| unsafe { w.com_a().bits(0b10) });
+            pwm.tim.tccr_a.modify(|_, w| unsafe { w.com_a().bits(0b10) });
         }, {
             unsafe { (*atmega32u4::TIMER0::ptr()).ocr_a.write(|w| w.bits(dc)); }
         }),
         |portd, PD0, pwm, dc| ({
             // Use OCR_B as Duty Cycle
-            pwm.tim.tccr_a.modify( |_, w| unsafe { w.com_b().bits(0b10) });
+            pwm.tim.tccr_a.modify(|_, w| unsafe { w.com_b().bits(0b10) });
         }, {
             unsafe { (*atmega32u4::TIMER0::ptr()).ocr_b.write(|w| w.bits(dc)); }
+        }),
+    ]
+}
+
+// Timer1
+timer! {
+    Info: (Timer1Pwm, TIMER1, tim),
+    Init: {
+        tim.tccr_a.modify(|_, w| unsafe { w.wgm0().bits(0b01) });
+        tim.tccr_b.modify(|_, w| unsafe {
+            w.wgm2().bits(0b01)
+             .cs().bits(0b011)
+        });
+    },
+    Pins: [
+        |portb, PB5, pwm, dc| ({
+            // Use OCR_A as Duty Cycle
+            pwm.tim.tccr_a.modify(|_, w| unsafe { w.com_a().bits(0b10) });
+        }, {
+            unsafe { (*atmega32u4::TIMER1::ptr()).ocr_a_l.write(|w| w.bits(dc)); }
+        }),
+        |portb, PB6, pwm, dc| ({
+            // Use OCR_B as Duty Cycle
+            pwm.tim.tccr_a.modify(|_, w| unsafe { w.com_b().bits(0b10) });
+        }, {
+            unsafe { (*atmega32u4::TIMER1::ptr()).ocr_b_l.write(|w| w.bits(dc)); }
+        }),
+        //////////////////////////////////////////////////////////////////
+        // The following can be used instead of Timer0.ocr_a:
+        //
+        // |portb, PB7, pwm, dc| ({
+        //     // Use OCR_C as Duty Cycle
+        //     pwm.tim.tccr_a.modify(|_, w| unsafe { w.com_c().bits(0b10) });
+        // }, {
+        //     unsafe { (*atmega32u4::TIMER1::ptr()).ocr_c_l.write(|w| w.bits(dc)); }
+        // }),
+    ]
+}
+
+// Timer3
+timer! {
+    Info: (Timer3Pwm, TIMER3, tim),
+    Init: {
+        tim.tccr_a.modify(|_, w| unsafe { w.wgm0().bits(0b01) });
+        tim.tccr_b.modify(|_, w| unsafe {
+            w.wgm2().bits(0b01)
+             .cs().bits(0b011)
+        });
+    },
+    Pins: [
+        |portc, PC6, pwm, dc| ({
+            // Use OCR_A as Duty Cycle
+            pwm.tim.tccr_a.modify(|_, w| unsafe { w.com_a().bits(0b10) });
+        }, {
+            unsafe { (*atmega32u4::TIMER3::ptr()).ocr_a_l.write(|w| w.bits(dc)); }
         }),
     ]
 }
