@@ -2,76 +2,68 @@ use core::marker;
 use atmega32u4;
 use port;
 
-pub struct Timer0Pwm {
-    tim: atmega32u4::TIMER0,
-}
-
-impl Timer0Pwm {
-    pub fn new(tim: atmega32u4::TIMER0) -> Timer0Pwm {
-        tim.tccr_a.modify(
-            |_, w| unsafe {
-                w.wgm0().bits(0x11)  // Fast PWM Mode
-            }
-        );
-
-        tim.tccr_b.modify(
-            |_, w| unsafe {
-                w.cs().bits(0b11)  // Enable timer
-            }
-        );
-
-        Timer0Pwm {
-            tim
+macro_rules! timer {
+    (
+        Info: ($Timer:ident, $TIMER:ident, $tim:ident),
+        Init: $init:block,
+        Pins: [
+            $(|$port:ident, $PIN:ident, $pwm:ident, $dc:ident| ($setup:block, $set_dc:block),)+
+        ]
+    ) => {
+        pub struct $Timer {
+            $tim: atmega32u4::$TIMER,
         }
+
+        impl $Timer {
+            pub fn new($tim: atmega32u4::$TIMER) -> $Timer {
+                $init
+
+                $Timer {
+                    $tim: $tim,
+                }
+            }
+        }
+
+        $(
+            impl port::$port::$PIN<port::mode::io::Output> {
+                pub fn into_pwm(self, $pwm: &mut $Timer) -> port::$port::$PIN<port::mode::Pwm> {
+                    $setup
+
+                    port::$port::$PIN {
+                        _mode: marker::PhantomData,
+                    }
+                }
+            }
+
+            impl port::$port::$PIN<port::mode::Pwm> {
+                pub fn set_duty_cycle(&mut self, $dc: u8) {
+                    $set_dc
+                }
+            }
+        )+
     }
 }
 
-impl port::portb::PB7<port::mode::io::Output> {
-    pub fn into_pwm(self, pwm: &mut Timer0Pwm) -> port::portb::PB7<port::mode::Pwm> {
-        pwm.tim.tccr_a.modify(
-            |_, w| unsafe {
-                w.com_a().bits(0b10)  // Use OCR_A as Duty Cycle
-            }
-        );
-
-        pwm.tim.tccr_b.modify(
-            |_, w| unsafe {
-                w.cs().bits(0b11)  // Enable timer
-            }
-        );
-
-        port::portb::PB7 {
-            _mode: marker::PhantomData,
-        }
-    }
-}
-
-impl port::portb::PB7<port::mode::Pwm> {
-    pub fn set_duty_cycle(&mut self, dc: u8) {
-        unsafe {
-            (*atmega32u4::TIMER0::ptr()).ocr_a.write(|w| w.bits(dc));
-        }
-    }
-}
-
-impl port::portd::PD0<port::mode::io::Output> {
-    pub fn into_pwm(self, pwm: &mut Timer0Pwm) -> port::portd::PD0<port::mode::Pwm> {
-        pwm.tim.tccr_a.modify(
-            |_, w| unsafe {
-                w.com_b().bits(0b10)  // Use OCR_B as Duty Cycle
-            }
-        );
-
-        port::portd::PD0 {
-            _mode: marker::PhantomData,
-        }
-    }
-}
-
-impl port::portd::PD0<port::mode::Pwm> {
-    pub fn set_duty_cycle(&mut self, dc: u8) {
-        unsafe {
-            (*atmega32u4::TIMER0::ptr()).ocr_b.write(|w| w.bits(dc));
-        }
-    }
+timer! {
+    Info: (Timer0Pwm, TIMER0, tim),
+    Init: {
+        // Fast PWM Mode
+        tim.tccr_a.modify( |_, w| unsafe { w.wgm0().bits(0x11) });
+        // Enable timer
+        tim.tccr_b.modify( |_, w| unsafe { w.cs().bits(0b11) });
+    },
+    Pins: [
+        |portb, PB7, pwm, dc| ({
+            // Use OCR_A as Duty Cycle
+            pwm.tim.tccr_a.modify( |_, w| unsafe { w.com_a().bits(0b10) });
+        }, {
+            unsafe { (*atmega32u4::TIMER0::ptr()).ocr_a.write(|w| w.bits(dc)); }
+        }),
+        |portd, PD0, pwm, dc| ({
+            // Use OCR_B as Duty Cycle
+            pwm.tim.tccr_a.modify( |_, w| unsafe { w.com_b().bits(0b10) });
+        }, {
+            unsafe { (*atmega32u4::TIMER0::ptr()).ocr_b.write(|w| w.bits(dc)); }
+        }),
+    ]
 }
