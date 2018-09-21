@@ -30,6 +30,32 @@ pub mod mode {
     pub struct Pwm;
 }
 
+macro_rules! inout_impl {
+    ($PORTX:ident, $PXi:ident, $i:expr, $MODE:ty) => {
+        impl $PXi<$MODE> {
+            pub fn into_floating_input(self, ddr: &mut DDR) -> $PXi<mode::io::Input<mode::io::Floating>> {
+                ddr.ddr().modify(|r, w| unsafe { w.bits(r.bits() & !(1 << $i)) });
+                unsafe { (*atmega32u4::$PORTX::ptr()).port.modify(|r, w| w.bits(r.bits() & !(1 << $i))) }
+
+                $PXi { _mode: marker::PhantomData }
+            }
+
+            pub fn into_pull_up_input(self, ddr: &mut DDR) -> $PXi<mode::io::Input<mode::io::PullUp>> {
+                ddr.ddr().modify(|r, w| unsafe { w.bits(r.bits() & !(1 << $i)) });
+                unsafe { (*atmega32u4::$PORTX::ptr()).port.modify(|r, w| w.bits(r.bits() | (1 << $i))) }
+
+                $PXi { _mode: marker::PhantomData }
+            }
+
+            pub fn into_output(self, ddr: &mut DDR) -> $PXi<mode::io::Output> {
+                ddr.ddr().modify(|r, w| unsafe { w.bits(r.bits() | (1 << $i)) });
+
+                $PXi { _mode: marker::PhantomData }
+            }
+        }
+    }
+}
+
 macro_rules! port {
     ($PortEnum:ident, $PORTX:ident, $portx:ident, $PXx:ident, [
         $($PXi:ident: ($pxi:ident, $i:expr, $MODE:ty),)+
@@ -112,26 +138,6 @@ macro_rules! port {
                 }
 
                 impl<MODE> $PXi<MODE> {
-                    pub fn into_floating_input(self, ddr: &mut DDR) -> $PXi<mode::io::Input<mode::io::Floating>> {
-                        ddr.ddr().modify(|r, w| unsafe { w.bits(r.bits() & !(1 << $i)) });
-                        unsafe { (*atmega32u4::$PORTX::ptr()).port.modify(|r, w| w.bits(r.bits() & !(1 << $i))) }
-
-                        $PXi { _mode: marker::PhantomData }
-                    }
-
-                    pub fn into_pull_up_input(self, ddr: &mut DDR) -> $PXi<mode::io::Input<mode::io::PullUp>> {
-                        ddr.ddr().modify(|r, w| unsafe { w.bits(r.bits() & !(1 << $i)) });
-                        unsafe { (*atmega32u4::$PORTX::ptr()).port.modify(|r, w| w.bits(r.bits() | (1 << $i))) }
-
-                        $PXi { _mode: marker::PhantomData }
-                    }
-
-                    pub fn into_output(self, ddr: &mut DDR) -> $PXi<mode::io::Output> {
-                        ddr.ddr().modify(|r, w| unsafe { w.bits(r.bits() | (1 << $i)) });
-
-                        $PXi { _mode: marker::PhantomData }
-                    }
-
                     pub fn downgrade(self) -> $PXx<MODE> {
                         $PXx {
                             i: $i,
@@ -139,6 +145,10 @@ macro_rules! port {
                         }
                     }
                 }
+
+                inout_impl!($PORTX, $PXi, $i, mode::io::Output);
+                inout_impl!($PORTX, $PXi, $i, mode::io::Input<mode::io::PullUp>);
+                inout_impl!($PORTX, $PXi, $i, mode::io::Input<mode::io::Floating>);
 
                 impl digital::OutputPin for $PXi<mode::io::Output> {
                     fn set_high(&mut self) {
