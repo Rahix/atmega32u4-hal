@@ -3,10 +3,9 @@ authors = ["Rahix <rahix@rahix.de>"]
 name = "atmega32u4-hal"
 version = "0.1.0"
 
-[dependencies.embedded-hal]
-version = "0.2.1"
-features = ["unproven"]
+[dependencies]
+atmega32u4 = "0.1.1"
 
-[dependencies.atmega32u4]
-optional = false
-path = "../atmega32u4"
+[dependencies.embedded-hal]
+features = ["unproven"]
+version = "0.2.1"
