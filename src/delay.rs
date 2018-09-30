@@ -26,9 +26,7 @@ impl<SPEED> Delay<SPEED> {
     ///
     /// This call will be eliminated when optimizing
     pub fn new() -> Delay<SPEED> {
-        Delay {
-            _speed: marker::PhantomData,
-        }
+        Delay { _speed: marker::PhantomData }
     }
 }
 
@@ -69,7 +67,9 @@ impl delay::DelayUs<u16> for Delay<MHz24> {
         // for the 24 MHz clock for the aventurous ones, trying to overclock
 
         // zero delay fix
-        if us == 0 { return } // = 3 cycles, (4 when true)
+        if us == 0 {
+            return;
+        } // = 3 cycles, (4 when true)
 
         // the following loop takes a 1/6 of a microsecond (4 cycles)
         // per iteration, so execute it six times for each microsecond of
@@ -95,7 +95,9 @@ impl delay::DelayUs<u16> for Delay<MHz20> {
             asm!("nop\nnop\nnop\nnop" :::: "volatile");
         } //just waiting 4 cycles
 
-        if us <= 1 { return } // = 3 cycles, (4 when true)
+        if us <= 1 {
+            return;
+        } // = 3 cycles, (4 when true)
 
         // the following loop takes a 1/5 of a microsecond (4 cycles)
         // per iteration, so execute it five times for each microsecond of
@@ -117,7 +119,9 @@ impl delay::DelayUs<u16> for Delay<MHz16> {
 
         // for a one-microsecond delay, simply return.  the overhead
         // of the function call takes 14 (16) cycles, which is 1us
-        if us <= 1 { return } // = 3 cycles, (4 when true)
+        if us <= 1 {
+            return;
+        } // = 3 cycles, (4 when true)
 
         // the following loop takes 1/4 of a microsecond (4 cycles)
         // per iteration, so execute it four times for each microsecond of
@@ -139,7 +143,9 @@ impl delay::DelayUs<u16> for Delay<MHz12> {
 
         // for a 1 microsecond delay, simply return.  the overhead
         // of the function call takes 14 (16) cycles, which is 1.5us
-        if us <= 1 { return } // = 3 cycles, (4 when true)
+        if us <= 1 {
+            return;
+        } // = 3 cycles, (4 when true)
 
         // the following loop takes 1/3 of a microsecond (4 cycles)
         // per iteration, so execute it three times for each microsecond of
@@ -161,7 +167,9 @@ impl delay::DelayUs<u16> for Delay<MHz8> {
 
         // for a 1 and 2 microsecond delay, simply return.  the overhead
         // of the function call takes 14 (16) cycles, which is 2us
-        if us <= 2 { return } // = 3 cycles, (4 when true)
+        if us <= 2 {
+            return;
+        } // = 3 cycles, (4 when true)
 
         // the following loop takes 1/2 of a microsecond (4 cycles)
         // per iteration, so execute it twice for each microsecond of
@@ -182,8 +190,12 @@ impl delay::DelayUs<u16> for Delay<MHz1> {
         // for the 1 MHz internal clock (default settings for common Atmega microcontrollers)
 
         // the overhead of the function calls is 14 (16) cycles
-        if us <= 16 { return } //= 3 cycles, (4 when true)
-        if us <= 25 { return } //= 3 cycles, (4 when true), (must be at least 25 if we want to substract 22)
+        if us <= 16 {
+            return;
+        } //= 3 cycles, (4 when true)
+        if us <= 25 {
+            return;
+        } //= 3 cycles, (4 when true), (must be at least 25 if we want to substract 22)
 
         // compensate for the time taken by the preceeding and next commands (about 22 cycles)
         us -= 22; // = 2 cycles
@@ -197,7 +209,8 @@ impl delay::DelayUs<u16> for Delay<MHz1> {
 }
 
 impl<SPEED> delay::DelayUs<u8> for Delay<SPEED>
-    where Delay<SPEED>: delay::DelayUs<u16>
+where
+    Delay<SPEED>: delay::DelayUs<u16>,
 {
     fn delay_us(&mut self, us: u8) {
         delay::DelayUs::<u16>::delay_us(self, us as u16);
@@ -205,7 +218,8 @@ impl<SPEED> delay::DelayUs<u8> for Delay<SPEED>
 }
 
 impl<SPEED> delay::DelayUs<u32> for Delay<SPEED>
-    where Delay<SPEED>: delay::DelayUs<u16>
+where
+    Delay<SPEED>: delay::DelayUs<u16>,
 {
     fn delay_us(&mut self, us: u32) {
         for _ in 0..(us >> 12) {
@@ -215,7 +229,8 @@ impl<SPEED> delay::DelayUs<u32> for Delay<SPEED>
 }
 
 impl<SPEED> delay::DelayMs<u16> for Delay<SPEED>
-    where Delay<SPEED>: delay::DelayUs<u32>
+where
+    Delay<SPEED>: delay::DelayUs<u32>,
 {
     fn delay_ms(&mut self, ms: u16) {
         delay::DelayUs::<u32>::delay_us(self, ms as u32 * 1000);

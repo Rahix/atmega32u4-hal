@@ -43,7 +43,7 @@ use core::cell;
 /// ```
 pub struct Global<T>(cell::UnsafeCell<Option<T>>);
 
-unsafe impl<T> Sync for Global<T> { }
+unsafe impl<T> Sync for Global<T> {}
 
 impl<T> Global<T> {
     /// Create a new global variable
@@ -55,10 +55,8 @@ impl<T> Global<T> {
     ///
     /// Used for initialization
     pub fn set(&self, val: T) {
-        atmega32u4::interrupt::free(|_| {
-            unsafe {
-                *self.0.get() = Some(val);
-            }
+        atmega32u4::interrupt::free(|_| unsafe {
+            *self.0.get() = Some(val);
         })
     }
 

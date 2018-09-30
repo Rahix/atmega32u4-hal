@@ -54,7 +54,7 @@ pub trait PortExt {
 /// Pin modes
 pub mod mode {
     /// Any digital IO mode
-    pub trait Io { }
+    pub trait Io {}
 
     /// Digital IO modes
     pub mod io {
@@ -73,8 +73,8 @@ pub mod mode {
         /// Floating Input
         pub struct Floating;
 
-        impl<MODE> super::Io for Input<MODE> { }
-        impl super::Io for Output { }
+        impl<MODE> super::Io for Input<MODE> {}
+        impl super::Io for Output {}
     }
 
     /// Pulse Width Modulated Output
@@ -147,21 +147,31 @@ macro_rules! port_impl {
 
             impl digital::OutputPin for $PXx<mode::io::Output> {
                 fn set_high(&mut self) {
-                    unsafe { (*atmega32u4::$PORTX::ptr()).port.modify(|r, w| w.bits(r.bits() | (1 << self.i))) }
+                    unsafe {
+                        (*atmega32u4::$PORTX::ptr())
+                            .port.modify(|r, w| w.bits(r.bits() | (1 << self.i)))
+                    }
                 }
 
                 fn set_low(&mut self) {
-                    unsafe { (*atmega32u4::$PORTX::ptr()).port.modify(|r, w| w.bits(r.bits() & !(1 << self.i))) }
+                    unsafe {
+                        (*atmega32u4::$PORTX::ptr())
+                            .port.modify(|r, w| w.bits(r.bits() & !(1 << self.i)))
+                    }
                 }
             }
 
             impl<MODE> digital::InputPin for $PXx<mode::io::Input<MODE>> {
                 fn is_high(&self) -> bool {
-                    (unsafe { (*atmega32u4::$PORTX::ptr()).pin.read().bits() } & (1 << self.i)) != 0
+                    (unsafe {
+                        (*atmega32u4::$PORTX::ptr()).pin.read().bits()
+                    } & (1 << self.i)) != 0
                 }
 
                 fn is_low(&self) -> bool {
-                    (unsafe { (*atmega32u4::$PORTX::ptr()).pin.read().bits() } & (1 << self.i)) == 0
+                    (unsafe {
+                        (*atmega32u4::$PORTX::ptr()).pin.read().bits()
+                    } & (1 << self.i)) == 0
                 }
             }
 
@@ -187,17 +197,31 @@ macro_rules! port_impl {
 
                 impl<MODE: mode::Io> $PXi<MODE> {
                     /// Turn this pin into a floating input
-                    pub fn into_floating_input(self, ddr: &mut DDR) -> $PXi<mode::io::Input<mode::io::Floating>> {
+                    pub fn into_floating_input(
+                        self,
+                        ddr: &mut DDR,
+                    ) -> $PXi<mode::io::Input<mode::io::Floating>> {
                         ddr.ddr().modify(|r, w| unsafe { w.bits(r.bits() & !(1 << $i)) });
-                        unsafe { (*atmega32u4::$PORTX::ptr()).port.modify(|r, w| w.bits(r.bits() & !(1 << $i))) }
+
+                        unsafe {
+                            (*atmega32u4::$PORTX::ptr())
+                                .port.modify(|r, w| w.bits(r.bits() & !(1 << $i)))
+                        }
 
                         $PXi { _mode: marker::PhantomData }
                     }
 
                     /// Turn this pin into a pull up input
-                    pub fn into_pull_up_input(self, ddr: &mut DDR) -> $PXi<mode::io::Input<mode::io::PullUp>> {
+                    pub fn into_pull_up_input(
+                        self,
+                        ddr: &mut DDR,
+                    ) -> $PXi<mode::io::Input<mode::io::PullUp>> {
                         ddr.ddr().modify(|r, w| unsafe { w.bits(r.bits() & !(1 << $i)) });
-                        unsafe { (*atmega32u4::$PORTX::ptr()).port.modify(|r, w| w.bits(r.bits() | (1 << $i))) }
+
+                        unsafe {
+                            (*atmega32u4::$PORTX::ptr())
+                                .port.modify(|r, w| w.bits(r.bits() | (1 << $i)))
+                        }
 
                         $PXi { _mode: marker::PhantomData }
                     }
@@ -212,21 +236,31 @@ macro_rules! port_impl {
 
                 impl digital::OutputPin for $PXi<mode::io::Output> {
                     fn set_high(&mut self) {
-                        unsafe { (*atmega32u4::$PORTX::ptr()).port.modify(|r, w| w.bits(r.bits() | (1 << $i))) }
+                        unsafe {
+                            (*atmega32u4::$PORTX::ptr())
+                                .port.modify(|r, w| w.bits(r.bits() | (1 << $i)))
+                        }
                     }
 
                     fn set_low(&mut self) {
-                        unsafe { (*atmega32u4::$PORTX::ptr()).port.modify(|r, w| w.bits(r.bits() & !(1 << $i))) }
+                        unsafe {
+                            (*atmega32u4::$PORTX::ptr())
+                                .port.modify(|r, w| w.bits(r.bits() & !(1 << $i)))
+                        }
                     }
                 }
 
                 impl<MODE> digital::InputPin for $PXi<mode::io::Input<MODE>> {
                     fn is_high(&self) -> bool {
-                        (unsafe { (*atmega32u4::$PORTX::ptr()).pin.read().bits() } & (1 << $i)) != 0
+                        (unsafe {
+                            (*atmega32u4::$PORTX::ptr()).pin.read().bits()
+                        } & (1 << $i)) != 0
                     }
 
                     fn is_low(&self) -> bool {
-                        (unsafe { (*atmega32u4::$PORTX::ptr()).pin.read().bits() } & (1 << $i)) == 0
+                        (unsafe {
+                            (*atmega32u4::$PORTX::ptr()).pin.read().bits()
+                        } & (1 << $i)) == 0
                     }
                 }
             )+
@@ -254,7 +288,8 @@ macro_rules! generic_pin_impl {
                 match self.port {
                     $(
                         Port::$PortEnum => unsafe {
-                            (*atmega32u4::$Port::ptr()).port.modify(|r, w| w.bits(r.bits() | (1 << self.i)))
+                            (*atmega32u4::$Port::ptr())
+                                .port.modify(|r, w| w.bits(r.bits() | (1 << self.i)))
                         },
                     )+
                 }
@@ -264,7 +299,8 @@ macro_rules! generic_pin_impl {
                 match self.port {
                     $(
                         Port::$PortEnum => unsafe {
-                            (*atmega32u4::$Port::ptr()).port.modify(|r, w| w.bits(r.bits() & !(1 << self.i)))
+                            (*atmega32u4::$Port::ptr())
+                                .port.modify(|r, w| w.bits(r.bits() & !(1 << self.i)))
                         },
                     )+
                 }
