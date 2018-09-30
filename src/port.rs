@@ -1,38 +1,91 @@
+//! Port{B,C,D,E,F}
+//!
+//! Abstraction of the IO pins.
+//!
+//! # Design
+//! For each port, you can call `.split()` on the raw periperal to separate the pins.
+//!
+//! By default, each pin is a `Input<Floating>`, there are three methods to change the
+//! mode:
+//! * `into_floating_input()`: Turn a pin into a floating input
+//! * `into_pull_up_input()`: Turn a pin into a pull-up input
+//! * `into_output()`: Turn a pin into an output
+//!
+//! For input pins [embedded_hal::digital::InputPin] is implemented, for output
+//! pins [embedded_hal::digital::OutputPin].
+//!
+//! ## Downgrading
+//! After `.split()` each pin is of a separate type.  This means you can't store them
+//! in an array.  To allow doing so, you can `.downgrade()` a pin.  This can be done
+//! twice:  The first downgrade makes the pin generic for its port, the second downgrade
+//! makes it fully generic.
+//!
+//! ## PWM
+//! Some pins can be configured to output a PWM signal.  This is not implemented in the port
+//! module but in the [timer] module.
+//!
+//! # Example
+//! ```
+//! // Get the raw peripherals
+//! let dp = atmega32u4::Peripherals::take().unwrap();
+//!
+//! // Split the port and create an output pin
+//! let mut portc = dp.PORTC.split();
+//! let mut pc7 = portc.pc7.into_output(&mut portc.ddr);
+//!
+//! // Use the pin
+//! pc7.set_high();
+//! pc7.set_low();
+//! ```
 use atmega32u4;
 use hal::digital;
 use core::marker;
 
+
+/// A splittable port
 pub trait PortExt {
+    /// Type that contains the split result
     type Parts;
 
+    /// Split this port into 8 pins
     fn split(self) -> Self::Parts;
 }
 
+/// Pin modes
 pub mod mode {
+    /// Any digital IO mode
     pub trait Io { }
 
+    /// Digital IO modes
     pub mod io {
         use core::marker;
 
+        /// Input
         pub struct Input<MODE> {
             _mode: marker::PhantomData<MODE>,
         }
+        /// Output
         pub struct Output;
 
+        /// PullUp Input
         pub struct PullUp;
+
+        /// Floating Input
         pub struct Floating;
 
         impl<MODE> super::Io for Input<MODE> { }
         impl super::Io for Output { }
     }
 
+    /// Pulse Width Modulated Output
     pub struct Pwm;
 }
 
-macro_rules! port {
+macro_rules! port_impl {
     ($PortEnum:ident, $PORTX:ident, $portx:ident, $PXx:ident, [
         $($PXi:ident: ($pxi:ident, $i:expr, $MODE:ty),)+
     ]) => {
+        /// Port Types
         pub mod $portx {
             use core::marker;
 
@@ -40,9 +93,12 @@ macro_rules! port {
             use hal::digital;
             use super::{PortExt, mode};
 
+            /// Splitted port parts
             pub struct Parts {
+                /// Data direction register
                 pub ddr: DDR,
                 $(
+                    /// Pin
                     pub $pxi: $PXi<$MODE>,
                 )+
             }
@@ -60,22 +116,26 @@ macro_rules! port {
                 }
             }
 
+            /// Data direction register
             pub struct DDR {
                 _0: (),
             }
 
             impl DDR {
-                pub fn ddr(&mut self) -> &atmega32u4::$portx::DDR {
+                /// Access the ddr register
+                pub(crate) fn ddr(&mut self) -> &atmega32u4::$portx::DDR {
                     unsafe { &(*atmega32u4::$PORTX::ptr()).ddr }
                 }
             }
 
+            /// Generalized pin
             pub struct $PXx<MODE> {
                 i: u8,
                 _mode: marker::PhantomData<MODE>,
             }
 
             impl<MODE> $PXx<MODE> {
+                /// Downgrade even further to a completely generic pin
                 pub fn downgrade(self) -> super::Pin<MODE> {
                     super::Pin {
                         i: self.i,
@@ -106,11 +166,17 @@ macro_rules! port {
             }
 
             $(
+                /// Pin
                 pub struct $PXi<MODE> {
                     pub(crate) _mode: marker::PhantomData<MODE>,
                 }
 
                 impl<MODE> $PXi<MODE> {
+                    /// Downgrade this pin into a more generic type
+                    ///
+                    /// This allows storing multiple pins in an array
+                    ///
+                    /// *Note*: The mode of downgraded pins can no longer be changed.
                     pub fn downgrade(self) -> $PXx<MODE> {
                         $PXx {
                             i: $i,
@@ -120,6 +186,7 @@ macro_rules! port {
                 }
 
                 impl<MODE: mode::Io> $PXi<MODE> {
+                    /// Turn this pin into a floating input
                     pub fn into_floating_input(self, ddr: &mut DDR) -> $PXi<mode::io::Input<mode::io::Floating>> {
                         ddr.ddr().modify(|r, w| unsafe { w.bits(r.bits() & !(1 << $i)) });
                         unsafe { (*atmega32u4::$PORTX::ptr()).port.modify(|r, w| w.bits(r.bits() & !(1 << $i))) }
@@ -127,6 +194,7 @@ macro_rules! port {
                         $PXi { _mode: marker::PhantomData }
                     }
 
+                    /// Turn this pin into a pull up input
                     pub fn into_pull_up_input(self, ddr: &mut DDR) -> $PXi<mode::io::Input<mode::io::PullUp>> {
                         ddr.ddr().modify(|r, w| unsafe { w.bits(r.bits() & !(1 << $i)) });
                         unsafe { (*atmega32u4::$PORTX::ptr()).port.modify(|r, w| w.bits(r.bits() | (1 << $i))) }
@@ -134,6 +202,7 @@ macro_rules! port {
                         $PXi { _mode: marker::PhantomData }
                     }
 
+                    /// Turn this pin into an output input
                     pub fn into_output(self, ddr: &mut DDR) -> $PXi<mode::io::Output> {
                         ddr.ddr().modify(|r, w| unsafe { w.bits(r.bits() | (1 << $i)) });
 
@@ -165,13 +234,14 @@ macro_rules! port {
     }
 }
 
-macro_rules! impl_generic_pin {
+macro_rules! generic_pin_impl {
     ($($PortEnum:ident: $Port:ident,)+) => {
         #[derive(Clone, Copy, Debug)]
         enum Port {
             $($PortEnum,)+
         }
 
+        /// A completely generic pin
         #[derive(Debug)]
         pub struct Pin<MODE> {
             i: u8,
@@ -225,7 +295,7 @@ macro_rules! impl_generic_pin {
     }
 }
 
-impl_generic_pin!(
+generic_pin_impl!(
     B: PORTB,
     C: PORTC,
     D: PORTD,
@@ -233,7 +303,7 @@ impl_generic_pin!(
     F: PORTF,
 );
 
-port! (B, PORTB, portb, PBx, [
+port_impl! (B, PORTB, portb, PBx, [
     PB0: (pb0, 0, mode::io::Input<mode::io::Floating>),
     PB1: (pb1, 1, mode::io::Input<mode::io::Floating>),
     PB2: (pb2, 2, mode::io::Input<mode::io::Floating>),
@@ -244,12 +314,12 @@ port! (B, PORTB, portb, PBx, [
     PB7: (pb7, 7, mode::io::Input<mode::io::Floating>),
 ]);
 
-port! (C, PORTC, portc, PCx, [
+port_impl! (C, PORTC, portc, PCx, [
     PC6: (pc6, 6, mode::io::Input<mode::io::Floating>),
     PC7: (pc7, 7, mode::io::Input<mode::io::Floating>),
 ]);
 
-port! (D, PORTD, portd, PDx, [
+port_impl! (D, PORTD, portd, PDx, [
     PD0: (pd0, 0, mode::io::Input<mode::io::Floating>),
     PD1: (pd1, 1, mode::io::Input<mode::io::Floating>),
     PD2: (pd2, 2, mode::io::Input<mode::io::Floating>),
@@ -260,12 +330,12 @@ port! (D, PORTD, portd, PDx, [
     PD7: (pd7, 7, mode::io::Input<mode::io::Floating>),
 ]);
 
-port! (E, PORTE, porte, PEx, [
+port_impl! (E, PORTE, porte, PEx, [
     PE2: (pe2, 2, mode::io::Input<mode::io::Floating>),
     PE6: (pe6, 6, mode::io::Input<mode::io::Floating>),
 ]);
 
-port! (F, PORTF, portf, PFx, [
+port_impl! (F, PORTF, portf, PFx, [
     PF0: (pf0, 0, mode::io::Input<mode::io::Floating>),
     PF1: (pf1, 1, mode::io::Input<mode::io::Floating>),
     PF4: (pf4, 4, mode::io::Input<mode::io::Floating>),

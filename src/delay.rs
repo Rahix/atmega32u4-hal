@@ -1,11 +1,30 @@
+//! Delay using a busy loop
+//!
+//! The implementation is a port from the ArduinoCore-avr library.  Timing should
+//! be cycle accurate up to 4096us.  Above that, an overhead from outer loops that
+//! is not yet calculated in, will lead to slightly longer delays.  If you need
+//! exact timing, please use a timer.
+//!
+//! # Example
+//! ```
+//! use atmega32u4_hal::delay;
+//! let mut delay = delay::Delay::<delay::MHz16>::new();
+//!
+//! // Wait 1s
+//! delay.delay_ms(1000);
+//! ```
 use hal::blocking::delay;
 use core::marker;
 
+/// Delay abstraction
 pub struct Delay<SPEED> {
     _speed: marker::PhantomData<SPEED>,
 }
 
 impl<SPEED> Delay<SPEED> {
+    /// Create a new Delay
+    ///
+    /// This call will be eliminated when optimizing
     pub fn new() -> Delay<SPEED> {
         Delay {
             _speed: marker::PhantomData,
@@ -13,11 +32,22 @@ impl<SPEED> Delay<SPEED> {
     }
 }
 
+/// 24 MHz Clock
 pub struct MHz24;
+
+/// 20 MHz Clock
 pub struct MHz20;
+
+/// 16 MHz Clock
 pub struct MHz16;
+
+/// 12 MHz Clock
 pub struct MHz12;
+
+/// 8 MHz Clock
 pub struct MHz8;
+
+/// 1 MHz Clock
 pub struct MHz1;
 
 // based on https://github.com/arduino/ArduinoCore-avr/blob/master/cores/arduino/wiring.c

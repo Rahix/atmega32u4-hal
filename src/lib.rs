@@ -1,5 +1,20 @@
-#![feature(asm, const_fn, const_unsafe_cell_new)]
+//! # Hardware Abstraction Layer for ATmega32U4
+//!
+//! Built ontop of [`atmega32u4`](https://crates.io/crates/atmega32u4) for register definitions
+//! and [`embedded-hal`](https://crates.io/crates/embedded-hal) for hardware abstractions.
+//!
+//! The following features are implemented as of now:
+//!
+//! * Port digital IO: Digital input and output using `embedded-hal` traits.
+//!   Examples can be found in the [port] module.
+//! * Port PWM: Using the 4 builtin timers, pwm can be configured for a few
+//!   pins.  For an example, take a look at [timer] module.
+//! * Delay: Delay using a busy loop.  Implementation taken from the ArduinoCore
+//!   library. Examples in the [delay] module.
+#![feature(asm, const_fn)]
+#![feature(const_unsafe_cell_new)]
 #![no_std]
+#![deny(missing_docs)]
 
 extern crate embedded_hal as hal;
 extern crate atmega32u4;
