@@ -22,7 +22,7 @@
 #![no_std]
 #![deny(missing_docs)]
 
-extern crate embedded_hal as hal;
+pub extern crate embedded_hal as hal;
 extern crate atmega32u4;
 
 pub mod port;

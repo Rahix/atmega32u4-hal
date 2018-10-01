@@ -12,7 +12,7 @@
 //! * `into_output()`: Turn a pin into an output
 //!
 //! For input pins [embedded_hal::digital::InputPin] is implemented, for output
-//! pins [embedded_hal::digital::OutputPin].
+//! pins [embedded_hal::digital::OutputPin] & [embedded_hal::digital::StatefulOutputPin].
 //!
 //! ## Downgrading
 //! After `.split()` each pin is of a separate type.  This means you can't store them
@@ -163,6 +163,22 @@ macro_rules! port_impl {
                 }
             }
 
+            impl digital::StatefulOutputPin for $PXx<mode::io::Output> {
+                fn is_set_high(&self) -> bool {
+                    (unsafe {
+                        (*atmega32u4::$PORTX::ptr()).port.read().bits()
+                    } & (1 << self.i)) != 0
+                }
+
+                fn is_set_low(&self) -> bool {
+                    (unsafe {
+                        (*atmega32u4::$PORTX::ptr()).port.read().bits()
+                    } & (1 << self.i)) == 0
+                }
+            }
+
+            impl digital::toggleable::Default for $PXx<mode::io::Output> { }
+
             impl<MODE> digital::InputPin for $PXx<mode::io::Input<MODE>> {
                 fn is_high(&self) -> bool {
                     (unsafe {
@@ -252,6 +268,22 @@ macro_rules! port_impl {
                     }
                 }
 
+                impl digital::StatefulOutputPin for $PXi<mode::io::Output> {
+                    fn is_set_high(&self) -> bool {
+                        (unsafe {
+                            (*atmega32u4::$PORTX::ptr()).port.read().bits()
+                        } & (1 << $i)) != 0
+                    }
+
+                    fn is_set_low(&self) -> bool {
+                        (unsafe {
+                            (*atmega32u4::$PORTX::ptr()).port.read().bits()
+                        } & (1 << $i)) == 0
+                    }
+                }
+
+                impl digital::toggleable::Default for $PXi<mode::io::Output> { }
+
                 impl<MODE> digital::InputPin for $PXi<mode::io::Input<MODE>> {
                     fn is_high(&self) -> bool {
                         (unsafe {
@@ -308,6 +340,30 @@ macro_rules! generic_pin_impl {
                 }
             }
         }
+
+        impl digital::StatefulOutputPin for Pin<mode::io::Output> {
+            fn is_set_high(&self) -> bool {
+                match self.port {
+                    $(
+                        Port::$PortEnum => unsafe {
+                            ((*atmega32u4::$Port::ptr()).port.read().bits() & (1 << self.i)) != 0
+                        },
+                    )+
+                }
+            }
+
+            fn is_set_low(&self) -> bool {
+                match self.port {
+                    $(
+                        Port::$PortEnum => unsafe {
+                            ((*atmega32u4::$Port::ptr()).port.read().bits() & (1 << self.i)) == 0
+                        },
+                    )+
+                }
+            }
+        }
+
+        impl digital::toggleable::Default for Pin<mode::io::Output> { }
 
         impl<MODE> digital::InputPin for Pin<mode::io::Input<MODE>> {
             fn is_high(&self) -> bool {
