@@ -5,7 +5,7 @@
 //! # Design
 //! For each port, you can call `.split()` on the raw periperal to separate the pins.
 //!
-//! By default, each pin is a `Input<Floating>`, there are three methods to change the
+//! By default, each pin is `Input<Floating>`.  There are three methods to change the
 //! mode:
 //! * `into_floating_input()`: Turn a pin into a floating input
 //! * `into_pull_up_input()`: Turn a pin into a pull-up input
@@ -16,9 +16,11 @@
 //!
 //! ## Downgrading
 //! After `.split()` each pin is of a separate type.  This means you can't store them
-//! in an array.  To allow doing so, you can `.downgrade()` a pin.  This can be done
+//! in an array.  To allow doing so you can `.downgrade()` a pin.  This can be done
 //! twice:  The first downgrade makes the pin generic for its port, the second downgrade
 //! makes it fully generic.
+//!
+//! *Note*: After downgrading a pin, you can no longer change its mode!
 //!
 //! ## PWM
 //! Some pins can be configured to output a PWM signal.  This is not implemented in the port

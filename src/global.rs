@@ -64,6 +64,8 @@ impl<T> Global<T> {
     ///
     /// Will execute `f` with the value of the global if the global
     /// has been initialized.  If it hasn't been, return `Err(())`.
+    ///
+    /// While the closure is executed, interrupts are disabled.
     pub fn get<R, F: FnOnce(&mut T) -> R>(&self, f: F) -> Result<R, ()> {
         atmega32u4::interrupt::free(|_| {
             let val = unsafe { &mut *self.0.get() };
