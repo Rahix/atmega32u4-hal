@@ -20,19 +20,17 @@
 //! ## Pins supporting PWM
 //! Only the following pins support PWM:
 //!
-//! | Timer                | Channel | Port                | Pin     |
-//! |----------------------|---------|---------------------|---------|
-//! | [atmega32u4::TIMER0] | `OC0A`  | [atmega32u4::PORTB] | `PB7`   |
-//! | [atmega32u4::TIMER0] | `OC0B`  | [atmega32u4::PORTD] | `PD0`   |
-//! | [atmega32u4::TIMER1] | `OC1A`  | [atmega32u4::PORTB] | `PB5`   |
-//! | [atmega32u4::TIMER1] | `OC1B`  | [atmega32u4::PORTB] | `PB6`   |
-//! | [atmega32u4::TIMER1] | `OC1C`  | [atmega32u4::PORTB] | (`PB7`) |
-//! | [atmega32u4::TIMER3] | `OC3A`  | [atmega32u4::PORTC] | `PC6`   |
-//! | [atmega32u4::TIMER4] | `OC4A`  | [atmega32u4::PORTC] | `PC7`   |
-//! | [atmega32u4::TIMER4] | `OC4D`  | [atmega32u4::PORTD] | `PD7`   |
-//!
-//! *Note*: `PB7` could technically also be PWM'd using `TIMER1` but that is
-//! not yet implemented
+//! | Timer                | Channel | Port                | Pin   |
+//! |----------------------|---------|---------------------|-------|
+//! | [atmega32u4::TIMER0] | `OC0A`  | [atmega32u4::PORTB] | `PB7` |
+//! | [atmega32u4::TIMER0] | `OC0B`  | [atmega32u4::PORTD] | `PD0` |
+//! | [atmega32u4::TIMER1] | `OC1A`  | [atmega32u4::PORTB] | `PB5` |
+//! | [atmega32u4::TIMER1] | `OC1B`  | [atmega32u4::PORTB] | `PB6` |
+//! | [atmega32u4::TIMER1] | `OC1C`  | [atmega32u4::PORTB] | `PB7` |
+//! | [atmega32u4::TIMER3] | `OC3A`  | [atmega32u4::PORTC] | `PC6` |
+//! | [atmega32u4::TIMER4] | `OC4A`  | [atmega32u4::PORTC] | `PC7` |
+//! | [atmega32u4::TIMER4] | `OC4B`  | [atmega32u4::PORTC] | `PB6` |
+//! | [atmega32u4::TIMER4] | `OC4D`  | [atmega32u4::PORTD] | `PD7` |
 //!
 //! # Example
 //! ```
@@ -47,8 +45,8 @@
 //! // First make the pin an output, then enable the PWM timer
 //! let mut pin = portc.pc7.into_output(&mut portc.ddr).into_pwm(&mut pwm4);
 //!
-//! // Use the pin
-//! pin.set_duty_cycle(128);
+//! // Set a duty cycle
+//! pin.set_duty(pin.get_max_duty() / 2);
 //! ```
 use core::marker;
 use hal;
@@ -87,7 +85,10 @@ macro_rules! timer_impl {
                 /// Make this pin a PWM pin
                 ///
                 /// Pin needs to be an output pin to be turned into a PWM pin.
-                pub fn into_pwm(self, $pwm: &mut $Timer) -> port::$port::$PIN<port::mode::Pwm> {
+                pub fn into_pwm(
+                    self,
+                    $pwm: &mut $Timer,
+                ) -> port::$port::$PIN<port::mode::Pwm<$Timer>> {
                     $setup
 
                     port::$port::$PIN {
@@ -96,7 +97,7 @@ macro_rules! timer_impl {
                 }
             }
 
-            impl hal::PwmPin for port::$port::$PIN<port::mode::Pwm> {
+            impl hal::PwmPin for port::$port::$PIN<port::mode::Pwm<$Timer>> {
                 type Duty = u8;
 
                 fn disable(&mut self) {
@@ -170,22 +171,19 @@ timer_impl! {
     ]
 }
 
-/// Marker for `PB7` pwm using Timer1
-pub struct Pwm1;
-
 // Manual second implementation
 impl port::portb::PB7<port::mode::io::Output> {
     /// Make this pin  a PWM pin, but using Timer1 instead of Timer0
     ///
     /// `PB7` can be PWM'd by both Timer0 and Timer1.
-    pub fn into_pwm1(self, pwm: &mut Timer1Pwm) -> port::portb::PB7<Pwm1> {
+    pub fn into_pwm1(self, pwm: &mut Timer1Pwm) -> port::portb::PB7<port::mode::Pwm<Timer1Pwm>> {
         pwm.tim.tccr_a.modify(|_, w| w.com_c().match_clear());
 
         port::portb::PB7 { _mode: marker::PhantomData }
     }
 }
 
-impl hal::PwmPin for port::portb::PB7<Pwm1> {
+impl hal::PwmPin for port::portb::PB7<port::mode::Pwm<Timer1Pwm>> {
     type Duty = u8;
 
     fn disable(&mut self) {
@@ -252,4 +250,44 @@ timer_impl! {
             pwm.tim.tccr_c.modify(|_, w| w.com_d().match_clear().pwm_d().set_bit());
         }),
     ]
+}
+
+// Manual second implementation
+impl port::portb::PB6<port::mode::io::Output> {
+    /// Make this pin a PWM pin, but using Timer4 instead of Timer1
+    ///
+    /// `PB6` can be PWM'd by both Timer1 and Timer4.
+    pub fn into_pwm4(self, pwm: &mut Timer4Pwm) -> port::portb::PB6<port::mode::Pwm<Timer4Pwm>> {
+        pwm.tim.tccr_a.modify(|_, w| {
+            w.com_b().match_clear().pwm_b().set_bit()
+        });
+
+        port::portb::PB6 { _mode: marker::PhantomData }
+    }
+}
+
+impl hal::PwmPin for port::portb::PB6<port::mode::Pwm<Timer4Pwm>> {
+    type Duty = u8;
+
+    fn disable(&mut self) {
+        unimplemented!()
+    }
+
+    fn enable(&mut self) {
+        unimplemented!()
+    }
+
+    fn get_duty(&self) -> Self::Duty {
+        unsafe { (&*atmega32u4::TIMER4::ptr()) }.ocr_b.read().bits()
+    }
+
+    fn get_max_duty(&self) -> Self::Duty {
+        ::core::u8::MAX
+    }
+
+    fn set_duty(&mut self, duty: Self::Duty) {
+        unsafe { (&*atmega32u4::TIMER4::ptr()) }.ocr_b.write(|w| {
+            w.bits(duty)
+        });
+    }
 }

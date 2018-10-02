@@ -55,6 +55,8 @@ pub trait PortExt {
 
 /// Pin modes
 pub mod mode {
+    use core::marker;
+
     /// Any digital IO mode
     pub trait Io {}
 
@@ -80,7 +82,9 @@ pub mod mode {
     }
 
     /// Pulse Width Modulated Output
-    pub struct Pwm;
+    pub struct Pwm<TIMER> {
+        pub(crate) _tim: marker::PhantomData<TIMER>,
+    }
 }
 
 macro_rules! port_impl {
@@ -480,7 +484,9 @@ macro_rules! define_pins {
         pub struct $Pins {
             $(
                 $(#[$attr])*
-                pub $name: $crate::port::$port::$PIN<$crate::port::mode::io::Input<$crate::port::mode::io::Floating>>,
+                pub $name: $crate::port::$port::$PIN<
+                    $crate::port::mode::io::Input<$crate::port::mode::io::Floating>
+                >,
             )+
             /// Data Direction Register
             ///
