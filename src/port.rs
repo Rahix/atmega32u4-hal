@@ -118,14 +118,20 @@ macro_rules! port_impl {
                 }
             }
 
+            /// Type that can export this ports data direction register
+            pub trait PortDDR {
+                #[doc(hidden)]
+                fn ddr(&mut self) -> &atmega32u4::$portx::DDR;
+            }
+
             /// Data direction register
             pub struct DDR {
                 _0: (),
             }
 
-            impl DDR {
+            impl PortDDR for DDR {
                 /// Access the ddr register
-                pub(crate) fn ddr(&mut self) -> &atmega32u4::$portx::DDR {
+                fn ddr(&mut self) -> &atmega32u4::$portx::DDR {
                     unsafe { &(*atmega32u4::$PORTX::ptr()).ddr }
                 }
             }
@@ -215,9 +221,9 @@ macro_rules! port_impl {
 
                 impl<MODE: mode::Io> $PXi<MODE> {
                     /// Turn this pin into a floating input
-                    pub fn into_floating_input(
+                    pub fn into_floating_input<D: PortDDR>(
                         self,
-                        ddr: &mut DDR,
+                        ddr: &mut D,
                     ) -> $PXi<mode::io::Input<mode::io::Floating>> {
                         ddr.ddr().modify(|r, w| unsafe { w.bits(r.bits() & !(1 << $i)) });
 
@@ -230,9 +236,9 @@ macro_rules! port_impl {
                     }
 
                     /// Turn this pin into a pull up input
-                    pub fn into_pull_up_input(
+                    pub fn into_pull_up_input<D: PortDDR>(
                         self,
-                        ddr: &mut DDR,
+                        ddr: &mut D,
                     ) -> $PXi<mode::io::Input<mode::io::PullUp>> {
                         ddr.ddr().modify(|r, w| unsafe { w.bits(r.bits() & !(1 << $i)) });
 
@@ -245,7 +251,7 @@ macro_rules! port_impl {
                     }
 
                     /// Turn this pin into an output input
-                    pub fn into_output(self, ddr: &mut DDR) -> $PXi<mode::io::Output> {
+                    pub fn into_output<D: PortDDR>(self, ddr: &mut D) -> $PXi<mode::io::Output> {
                         ddr.ddr().modify(|r, w| unsafe { w.bits(r.bits() | (1 << $i)) });
 
                         $PXi { _mode: marker::PhantomData }
