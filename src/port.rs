@@ -443,3 +443,71 @@ port_impl! (F, PORTF, portf, PFx, [
     PF6: (pf6, 6, mode::io::Input<mode::io::Floating>),
     PF7: (pf7, 7, mode::io::Input<mode::io::Floating>),
 ]);
+
+// Inspired by the macro from wez/atsamd21-rs
+#[doc(hidden)]
+#[macro_export]
+macro_rules! define_pins {
+    (
+        $(#[$pins_attr:meta])*
+        name: $Pins:ident,
+        ddr: $DDR:ident {
+            $($portx:ident: $PORTX:ty,)+
+        },
+        pins: {
+            $(
+                $(#[$attr:meta])*
+                $name:ident: ($port:ident, $pin:ident, $PIN:ident),
+            )+
+        }
+    ) => {
+        /// Generic DDR type that can be used for all ports
+        pub struct $DDR {
+            $(
+                $portx: $crate::port::$portx::DDR,
+            )+
+        }
+
+        $(
+            impl $crate::port::$portx::PortDDR for $DDR {
+                fn ddr(&mut self) -> &atmega32u4::$portx::DDR {
+                    self.$portx.ddr()
+                }
+            }
+        )+
+
+        $(#[$pins_attr])*
+        pub struct $Pins {
+            $(
+                $(#[$attr])*
+                pub $name: $crate::port::$port::$PIN<$crate::port::mode::io::Input<$crate::port::mode::io::Floating>>,
+            )+
+            /// Data Direction Register
+            ///
+            /// This ddr is generic and can be used for all pins
+            pub ddr: $DDR,
+        }
+
+        impl $Pins {
+            /// Initialize pins
+            pub fn new(
+                $( $portx: $PORTX, )+
+            ) -> Pins {
+                use $crate::port::PortExt;
+
+                $( let $portx = $portx.split(); )+
+
+                Pins {
+                    $(
+                        $name: $port.$pin,
+                    )+
+                    ddr: $DDR {
+                        $(
+                            $portx: $portx.ddr,
+                        )+
+                    }
+                }
+            }
+        }
+    };
+}
