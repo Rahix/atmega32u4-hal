@@ -146,17 +146,6 @@ macro_rules! port_impl {
                 _mode: marker::PhantomData<MODE>,
             }
 
-            impl<MODE> $PXx<MODE> {
-                /// Downgrade even further to a completely generic pin
-                pub fn downgrade(self) -> super::Pin<MODE> {
-                    super::Pin {
-                        i: self.i,
-                        port: super::Port::$PortEnum,
-                        _mode: marker::PhantomData,
-                    }
-                }
-            }
-
             impl digital::OutputPin for $PXx<mode::io::Output> {
                 fn set_high(&mut self) {
                     unsafe {
@@ -210,12 +199,27 @@ macro_rules! port_impl {
                 }
 
                 impl<MODE> $PXi<MODE> {
-                    /// Downgrade this pin into a more generic type
+                    /// Downgrade this pin into a more generic pin type
                     ///
-                    /// This allows storing multiple pins in an array
+                    /// This allows storing multiple pins in an array. It does however
+                    /// come with some runtime overhead, so choose `downgrade_port` if
+                    /// possible.
                     ///
                     /// *Note*: The mode of downgraded pins can no longer be changed.
-                    pub fn downgrade(self) -> $PXx<MODE> {
+                    pub fn downgrade(self) -> super::Pin<MODE> {
+                        super::Pin {
+                            i: $i,
+                            port: super::Port::$PortEnum,
+                            _mode: marker::PhantomData,
+                        }
+                    }
+
+                    /// Downgrade this pin into a more type generic over all pins of this port
+                    ///
+                    /// This allows storing multiple pins of a port in an array
+                    ///
+                    /// *Note*: The mode of downgraded pins can no longer be changed.
+                    pub fn downgrade_port(self) -> $PXx<MODE> {
                         $PXx {
                             i: $i,
                             _mode: marker::PhantomData,
