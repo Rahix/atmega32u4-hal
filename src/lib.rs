@@ -19,6 +19,7 @@
 //! data races.  For more info, take a look at the [global] module.
 #![feature(asm, const_fn)]
 #![cfg_attr(not(feature = "docs"), feature(const_unsafe_cell_new))]
+#![cfg_attr(feature = "docs", feature(extern_prelude))]
 #![no_std]
 #![deny(missing_docs)]
 
