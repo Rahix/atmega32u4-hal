@@ -24,3 +24,13 @@ version = "0.2.1"
 
 [package.metadata.docs.rs]
 features = ["docs"]
+
+[profile.dev]
+codegen-units = 1
+lto = true
+incremental = false
+
+[profile.release]
+codegen-units = 1
+lto = true
+incremental = false
