@@ -51,6 +51,7 @@
 //! pin.set_duty_cycle(128);
 //! ```
 use core::marker;
+use hal;
 use atmega32u4;
 use port;
 
@@ -59,7 +60,7 @@ macro_rules! timer_impl {
         Info: ($Timer:ident, $TIMER:ident, $tim:ident),
         Init: $init:block,
         Pins: [
-            $(|$port:ident, $PIN:ident, $pwm:ident, $dc:ident| ($setup:block, $set_dc:block),)+
+            $(|$port:ident, $PIN:ident, $pwm:ident| ($ocr:ident, $setup:block),)+
         ]
     ) => {
         /// PWM Timer
@@ -95,10 +96,27 @@ macro_rules! timer_impl {
                 }
             }
 
-            impl port::$port::$PIN<port::mode::Pwm> {
-                /// Set the PWM duty cycle for this pin
-                pub fn set_duty_cycle(&mut self, $dc: u8) {
-                    $set_dc
+            impl hal::PwmPin for port::$port::$PIN<port::mode::Pwm> {
+                type Duty = u8;
+
+                fn disable(&mut self) {
+                    unimplemented!()
+                }
+
+                fn enable(&mut self) {
+                    unimplemented!()
+                }
+
+                fn get_duty(&self) -> Self::Duty {
+                    unsafe { (&*atmega32u4::$TIMER::ptr()) }.$ocr.read().bits()
+                }
+
+                fn get_max_duty(&self) -> Self::Duty {
+                    ::core::u8::MAX
+                }
+
+                fn set_duty(&mut self, duty: Self::Duty) {
+                    unsafe { (&*atmega32u4::$TIMER::ptr()) }.$ocr.write(|w| w.bits(duty));
                 }
             }
         )+
@@ -115,17 +133,13 @@ timer_impl! {
         tim.tccr_b.modify(|_, w| w.cs().io_64());
     },
     Pins: [
-        |portb, PB7, pwm, dc| ({
+        |portb, PB7, pwm| (ocr_a, {
             // Use OCR_A as Duty Cycle
             pwm.tim.tccr_a.modify(|_, w| w.com_a().match_clear());
-        }, {
-            unsafe { (&*atmega32u4::TIMER0::ptr()) }.ocr_a.write(|w| w.bits(dc));
         }),
-        |portd, PD0, pwm, dc| ({
+        |portd, PD0, pwm| (ocr_b, {
             // Use OCR_B as Duty Cycle
             pwm.tim.tccr_a.modify(|_, w| w.com_b().match_clear());
-        }, {
-            unsafe { (&*atmega32u4::TIMER0::ptr()) }.ocr_b.write(|w| w.bits(dc));
         }),
     ]
 }
@@ -138,26 +152,20 @@ timer_impl! {
         tim.tccr_b.modify(|_, w| unsafe { w.wgm2().bits(0b01)}.cs().io_64());
     },
     Pins: [
-        |portb, PB5, pwm, dc| ({
+        |portb, PB5, pwm| (ocr_a_l, {
             // Use OCR_A as Duty Cycle
             pwm.tim.tccr_a.modify(|_, w| w.com_a().match_clear());
-        }, {
-            unsafe { (&*atmega32u4::TIMER1::ptr()) }.ocr_a_l.write(|w| w.bits(dc));
         }),
-        |portb, PB6, pwm, dc| ({
+        |portb, PB6, pwm| (ocr_b_l, {
             // Use OCR_B as Duty Cycle
             pwm.tim.tccr_a.modify(|_, w| w.com_b().match_clear());
-        }, {
-            unsafe { (&*atmega32u4::TIMER1::ptr()) }.ocr_b_l.write(|w| w.bits(dc));
         }),
         //////////////////////////////////////////////////////////////////
         // The following can be used instead of Timer0.ocr_a:
         //
-        // |portb, PB7, pwm, dc| ({
+        // |portb, PB7, pwm, dc| (ocr_c_l, {
         //     // Use OCR_C as Duty Cycle
         //     pwm.tim.tccr_a.modify(|_, w| w.com_c().match_clear());
-        // }, {
-        //     unsafe { (&*atmega32u4::TIMER1::ptr()) }.ocr_c_l.write(|w| w.bits(dc));
         // }),
     ]
 }
@@ -170,11 +178,9 @@ timer_impl! {
         tim.tccr_b.modify(|_, w| unsafe { w.wgm2().bits(0b01) }.cs().io_64());
     },
     Pins: [
-        |portc, PC6, pwm, dc| ({
+        |portc, PC6, pwm| (ocr_a_l, {
             // Use OCR_A as Duty Cycle
             pwm.tim.tccr_a.modify(|_, w| w.com_a().match_clear());
-        }, {
-            unsafe { (&*atmega32u4::TIMER3::ptr()) }.ocr_a_l.write(|w| w.bits(dc));
         }),
     ]
 }
@@ -189,19 +195,15 @@ timer_impl! {
         tim.tccr_d.modify(|_, w| unsafe { w.wgm().bits(0b01) });
     },
     Pins: [
-        |portc, PC7, pwm, dc| ({
+        |portc, PC7, pwm| (ocr_a, {
             // Use OCR_A as Duty Cycle
             // Enable PWM for OCR_A
             pwm.tim.tccr_a.modify(|_, w| w.com_a().match_clear().pwm_a().set_bit());
-        }, {
-            unsafe { (&*atmega32u4::TIMER4::ptr()) }.ocr_a.write(|w| w.bits(dc));
         }),
-        |portd, PD7, pwm, dc| ({
+        |portd, PD7, pwm| (ocr_d, {
             // Use OCR_D as Duty Cycle
             // Enable PWM for OCR_D
             pwm.tim.tccr_c.modify(|_, w| w.com_d().match_clear().pwm_d().set_bit());
-        }, {
-            unsafe { (&*atmega32u4::TIMER4::ptr()) }.ocr_d.write(|w| w.bits(dc));
         }),
     ]
 }
