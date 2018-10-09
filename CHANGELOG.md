@@ -1,6 +1,9 @@
 # Changelog
 
 ## [Unreleased]
+### Fixed
+- Fixed triggering a compiler segfault by attempting to compile avr assembly
+  on non avr architectures. (See <https://github.com/rust-lang/rust/issues/51130>)
 
 
 ## [0.1.2] - 2018-10-07

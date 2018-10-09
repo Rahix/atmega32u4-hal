@@ -50,6 +50,7 @@ pub struct MHz1;
 
 // based on https://github.com/arduino/ArduinoCore-avr/blob/master/cores/arduino/wiring.c
 
+#[cfg(target_arch = "avr")]
 #[allow(unused_assignments)]
 fn busy_loop(mut us: u16) {
     unsafe {
@@ -60,6 +61,19 @@ fn busy_loop(mut us: u16) {
              : "volatile"
              );
     }
+}
+
+// Building for anything but avr should fail ...
+#[cfg(not(any(target_arch = "avr", feature = "docs")))]
+fn busy_loop(_us: u16) {
+    sorry!(This library is made for avr and cannot be compiled for anything else!)
+}
+
+// ... unless we are building docs
+#[cfg(feature = "docs")]
+fn busy_loop(_us: u16) {
+    // Empty implementation when building documentation
+    unimplemented!("This library is made for avr and cannot be used for anything else!")
 }
 
 impl delay::DelayUs<u16> for Delay<MHz24> {
