@@ -13,8 +13,8 @@
 //! // Wait 1s
 //! delay.delay_ms(1000);
 //! ```
-use hal::blocking::delay;
 use core::marker;
+use hal::blocking::delay;
 
 /// Delay abstraction
 pub struct Delay<SPEED> {
@@ -26,7 +26,9 @@ impl<SPEED> Delay<SPEED> {
     ///
     /// This call will be eliminated when optimizing
     pub fn new() -> Delay<SPEED> {
-        Delay { _speed: marker::PhantomData }
+        Delay {
+            _speed: marker::PhantomData,
+        }
     }
 }
 
@@ -55,11 +57,11 @@ pub struct MHz1;
 fn busy_loop(mut us: u16) {
     unsafe {
         asm!("1: sbiw $0,1\n\tbrne 1b"
-             : "=w"(us)
-             : "0"(us)
-             :
-             : "volatile"
-             );
+        : "=w"(us)
+        : "0"(us)
+        :
+        : "volatile"
+        );
     }
 }
 
@@ -213,9 +215,9 @@ impl delay::DelayUs<u16> for Delay<MHz1> {
 
         // compensate for the time taken by the preceeding and next commands (about 22 cycles)
         us -= 22; // = 2 cycles
-        // the following loop takes 4 microseconds (4 cycles)
-        // per iteration, so execute it us/4 times
-        // us is at least 4, divided by 4 gives us 1 (no zero delay bug)
+                  // the following loop takes 4 microseconds (4 cycles)
+                  // per iteration, so execute it us/4 times
+                  // us is at least 4, divided by 4 gives us 1 (no zero delay bug)
         us >>= 2; // us div 4, = 4 cycles
 
         busy_loop(us);

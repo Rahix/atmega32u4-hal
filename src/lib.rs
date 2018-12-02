@@ -23,11 +23,11 @@
 #![no_std]
 #![deny(missing_docs)]
 
-pub extern crate embedded_hal as hal;
 extern crate atmega32u4;
+pub extern crate embedded_hal as hal;
 
-pub mod port;
 pub mod delay;
+pub mod port;
 pub mod prelude;
 pub mod timer;
 

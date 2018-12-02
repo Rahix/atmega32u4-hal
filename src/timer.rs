@@ -48,9 +48,9 @@
 //! // Set a duty cycle
 //! pin.set_duty(pin.get_max_duty() / 2);
 //! ```
+use atmega32u4;
 use core::marker;
 use hal;
-use atmega32u4;
 use port;
 
 macro_rules! timer_impl {
@@ -179,7 +179,9 @@ impl port::portb::PB7<port::mode::io::Output> {
     pub fn into_pwm1(self, pwm: &mut Timer1Pwm) -> port::portb::PB7<port::mode::Pwm<Timer1Pwm>> {
         pwm.tim.tccr_a.modify(|_, w| w.com_c().match_clear());
 
-        port::portb::PB7 { _mode: marker::PhantomData }
+        port::portb::PB7 {
+            _mode: marker::PhantomData,
+        }
     }
 }
 
@@ -206,11 +208,9 @@ impl hal::PwmPin for port::portb::PB7<port::mode::Pwm<Timer1Pwm>> {
     }
 
     fn set_duty(&mut self, duty: Self::Duty) {
-        unsafe { (&*atmega32u4::TIMER1::ptr()) }.ocr_c_l.write(
-            |w| {
-                w.bits(duty)
-            },
-        );
+        unsafe { (&*atmega32u4::TIMER1::ptr()) }
+            .ocr_c_l
+            .write(|w| w.bits(duty));
     }
 }
 
@@ -258,11 +258,13 @@ impl port::portb::PB6<port::mode::io::Output> {
     ///
     /// `PB6` can be PWM'd by both Timer1 and Timer4.
     pub fn into_pwm4(self, pwm: &mut Timer4Pwm) -> port::portb::PB6<port::mode::Pwm<Timer4Pwm>> {
-        pwm.tim.tccr_a.modify(|_, w| {
-            w.com_b().match_clear().pwm_b().set_bit()
-        });
+        pwm.tim
+            .tccr_a
+            .modify(|_, w| w.com_b().match_clear().pwm_b().set_bit());
 
-        port::portb::PB6 { _mode: marker::PhantomData }
+        port::portb::PB6 {
+            _mode: marker::PhantomData,
+        }
     }
 }
 
@@ -286,8 +288,8 @@ impl hal::PwmPin for port::portb::PB6<port::mode::Pwm<Timer4Pwm>> {
     }
 
     fn set_duty(&mut self, duty: Self::Duty) {
-        unsafe { (&*atmega32u4::TIMER4::ptr()) }.ocr_b.write(|w| {
-            w.bits(duty)
-        });
+        unsafe { (&*atmega32u4::TIMER4::ptr()) }
+            .ocr_b
+            .write(|w| w.bits(duty));
     }
 }
