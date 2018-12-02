@@ -40,9 +40,8 @@
 //! pc7.set_low();
 //! ```
 use atmega32u4;
-use hal::digital;
 use core::marker;
-
+use hal::digital;
 
 /// A splittable port
 pub trait PortExt {
@@ -403,13 +402,7 @@ macro_rules! generic_pin_impl {
     }
 }
 
-generic_pin_impl!(
-    B: PORTB,
-    C: PORTC,
-    D: PORTD,
-    E: PORTE,
-    F: PORTF,
-);
+generic_pin_impl!(B: PORTB, C: PORTC, D: PORTD, E: PORTE, F: PORTF,);
 
 port_impl! (B, PORTB, portb, PBx, [
     PB0: (pb0, 0, mode::io::Input<mode::io::Floating>),
