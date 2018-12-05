@@ -3,6 +3,11 @@
 ## [Unreleased]
 
 
+## [0.1.4] - 2018-12-05
+### Fixed
+- Make this crate work with a newer avr compiler
+
+
 ## [0.1.3] - 2018-10-09
 ### Fixed
 - Fixed triggering a compiler segfault by attempting to compile avr assembly
