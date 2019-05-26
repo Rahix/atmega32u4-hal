@@ -1,3 +1,11 @@
+# Deprecation Note:
+**This crate will soon be deprecated in favor of [`avr-hal`](https://github.com/Rahix/avr-hal).**
+
+`avr-hal` is a new approach to writing the HAL crate, that was designed with support for many AVR microcontrollers in mind.  The macros have been factored out into a common crate named `avr-hal-generic`, which the board HALs then use to instanciate their respective peripherals.
+
+---
+
+
 # `ATmega32U4-HAL` [![crates.io page](http://meritbadge.herokuapp.com/atmega32u4-hal)](https://crates.io/crates/atmega32u4-hal) [![docs.rs](https://docs.rs/atmega32u4-hal/badge.svg)](https://docs.rs/atmega32u4-hal)
 
 Hardware Abstraction Layer for ATmega32U4.  Built ontop of [`atmega32u4`](https://crates.io/crates/atmega32u4) for
